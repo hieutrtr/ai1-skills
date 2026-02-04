@@ -201,6 +201,134 @@ Worked examples showing how to decompose features into atomic tasks for Python (
 
 ---
 
+## Example 4: Migrate Sync Notifications to Event-Driven (Migration Strategy)
+
+**Objective:** Replace synchronous notification calls with an event-driven system using Kafka, using the strangler fig pattern.
+
+### Task 1: Define event schemas
+- **Files:** `app/events/schemas.py`
+- **Preconditions:** none
+- **Steps:**
+  1. Define `NotificationEvent` Pydantic model with event_type, payload, timestamp, correlation_id
+  2. Define `EventEnvelope` wrapper with metadata and version
+- **Done when:** `pytest tests/unit/test_event_schemas.py` passes
+- **Complexity:** trivial
+- **Parallel:** Can run alongside Task 2
+
+### Task 2: Create Kafka producer configuration
+- **Files:** `app/core/kafka.py`
+- **Preconditions:** none
+- **Steps:**
+  1. Add Kafka connection settings to app config (BaseSettings)
+  2. Create async Kafka producer with connection pooling
+  3. Add health check for Kafka connectivity
+- **Done when:** `pytest tests/unit/test_kafka.py` passes (with mocked broker)
+- **Complexity:** small
+- **Parallel:** Can run alongside Task 1
+
+### Task 3: Create event producer service
+- **Files:** `app/services/event_producer.py`
+- **Preconditions:** Task 1, Task 2
+- **Steps:**
+  1. Create `EventProducer.publish(event)` method with serialization
+  2. Add retry logic with exponential backoff
+  3. Add dead letter queue handling for failed events
+- **Done when:** `pytest tests/unit/test_event_producer.py` passes
+- **Complexity:** medium
+
+### Task 4: Create notification event consumer
+- **Files:** `app/consumers/notification_consumer.py`
+- **Preconditions:** Task 1, Task 3
+- **Steps:**
+  1. Create consumer subscribing to `notifications` topic
+  2. Route events to existing notification service methods by event_type
+  3. Add idempotency check using correlation_id
+- **Done when:** `pytest tests/integration/test_notification_consumer.py` passes
+- **Complexity:** medium
+
+### Task 5: Add dual-write to existing notification service (strangler)
+- **Files:** `app/services/notification_service.py`
+- **Preconditions:** Task 3
+- **Steps:**
+  1. At each synchronous notification call, also publish the corresponding event
+  2. Keep existing synchronous path fully functional (dual-write phase)
+  3. Add feature flag to control event publishing
+- **Done when:** `pytest tests/integration/test_notifications.py` passes AND events verified in test topic
+- **Complexity:** medium
+
+### Task 6: Verify event path matches sync path
+- **Files:** `tests/integration/test_notification_parity.py`
+- **Preconditions:** Task 4, Task 5
+- **Steps:**
+  1. Write parity tests that trigger notifications via both paths
+  2. Assert identical outcomes (same notifications delivered)
+- **Done when:** `pytest tests/integration/test_notification_parity.py` passes
+- **Complexity:** small
+
+### Task 7: Remove synchronous notification calls
+- **Files:** `app/services/notification_service.py`, `app/routers/notifications.py`
+- **Preconditions:** Task 6
+- **Steps:**
+  1. Remove synchronous notification calls, keep only event publishing
+  2. Remove feature flag (event path is now the only path)
+  3. Update router to use event-based notifications
+- **Done when:** `pytest tests/` passes with no synchronous notification calls remaining, `grep -r "send_notification_sync" app/` returns empty
+- **Complexity:** medium
+
+**Total: 7 tasks, ~9 files, estimated medium-large overall**
+**Strategy used: Migration (strangler fig pattern with dual-write verification)**
+
+---
+
+## Example 5: Refactor Monolith Module to Feature-First Structure
+
+**Objective:** Restructure the `orders` module from type-based organization to feature-first, then add order cancellation.
+
+### Task 1: Create feature directory structure
+- **Files:** `app/features/orders/__init__.py`, `app/features/orders/router.py`, `app/features/orders/service.py`
+- **Preconditions:** none
+- **Steps:**
+  1. Create `app/features/orders/` directory with __init__.py
+  2. Move order router, service, and repository into feature directory
+  3. Update import paths in main app
+- **Done when:** `pytest tests/` passes with new file locations, app starts successfully
+- **Complexity:** medium
+
+### Task 2: Move order schemas and models
+- **Files:** `app/features/orders/schemas.py`, `app/features/orders/models.py`
+- **Preconditions:** Task 1
+- **Steps:**
+  1. Move order-related Pydantic schemas to feature directory
+  2. Move order SQLAlchemy model to feature directory
+  3. Update all imports across codebase
+- **Done when:** `pytest tests/` passes, no import errors
+- **Complexity:** small
+
+### Task 3: Add order cancellation endpoint
+- **Files:** `app/features/orders/service.py`, `app/features/orders/router.py`
+- **Preconditions:** Task 2
+- **Steps:**
+  1. Add `cancel_order` method to order service with validation (only pending orders)
+  2. Add `POST /orders/{id}/cancel` endpoint
+  3. Add cancellation reason to order model (if not exists)
+- **Done when:** `pytest tests/integration/test_orders.py -k test_cancel` passes
+- **Complexity:** medium
+
+### Task 4: Add frontend cancellation UI
+- **Files:** `src/features/orders/components/CancelOrderButton.tsx`, `src/features/orders/hooks/useCancelOrder.ts`
+- **Preconditions:** Task 3
+- **Steps:**
+  1. Create `useCancelOrder` mutation hook
+  2. Create `CancelOrderButton` with confirmation dialog
+  3. Integrate into order detail page
+- **Done when:** `npm test -- CancelOrder` passes, button renders on order detail
+- **Complexity:** medium
+
+**Total: 4 tasks, ~8 files, estimated medium overall**
+**Strategy used: Feature-first (restructure then add feature)**
+
+---
+
 ## Anti-Patterns to Avoid
 
 1. **God task**: A single task that touches 10+ files. Always split.
@@ -208,3 +336,6 @@ Worked examples showing how to decompose features into atomic tasks for Python (
 3. **Missing preconditions**: Every task after the first should list what it depends on.
 4. **Over-decomposition**: 1-line config changes don't need their own task. Bundle trivial related changes.
 5. **Ignoring parallelism**: If two tasks are independent, say so explicitly — it saves implementation time.
+6. **No rollback plan for migrations**: Every migration task should document how to revert. The system must be deployable after each task.
+7. **Skipping parity tests during migration**: When replacing old paths with new ones, always verify identical behavior before removing the old path.
+8. **Mixing refactoring with feature work**: Refactoring tasks (moving files, renaming) should be separate from feature tasks (adding behavior). This keeps diffs reviewable.
