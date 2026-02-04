@@ -2,6 +2,27 @@
 
 A portfolio of **17 Agent Skills** covering the full software development lifecycle for **Python (FastAPI) + React/TypeScript** projects. Built on the [Agent Skills](https://agentskills.io) open standard — works with Claude Code, Cursor, GitHub Copilot, Codex, Windsurf, and other compatible tools.
 
+## Quick Start
+
+```bash
+npx skills add hieutrtr/ai1-skills
+```
+
+| Starting a... | Guide |
+|---------------|-------|
+| **New project** from scratch | [Greenfield Guide](docs/greenfield.md) — step-by-step from planning to production |
+| **Existing project** adoption | [Brownfield Guide](docs/brownfield.md) — incremental adoption, security-first |
+
+Try these prompts after installing:
+
+```
+"Plan the implementation for adding user authentication"
+"Create a FastAPI endpoint for user registration"
+"Review this code for security vulnerabilities"
+```
+
+See [Skill Composition Guide](docs/skill-composition.md) for how skills relate to each other.
+
 ## Skills Overview
 
 | # | SDLC Phase | Skill | What It Does |
@@ -23,6 +44,50 @@ A portfolio of **17 Agent Skills** covering the full software development lifecy
 | 15 | Deployment | `docker-best-practices` | Multi-stage builds, layer optimization, security, Compose |
 | 16 | Operations | `incident-response` | Severity classification, diagnostics, runbooks, post-mortems |
 | 17 | Operations | `monitoring-setup` | structlog, Prometheus, health checks, alerting, Sentry |
+
+## SDLC Flow
+
+```mermaid
+flowchart LR
+    subgraph Planning
+        PP["project-planner"] --> TD["task-decomposition"]
+    end
+
+    subgraph Architecture
+        SA["system-architecture"]
+        AD["api-design-patterns"]
+    end
+
+    subgraph Implementation
+        BE["python-backend-expert"]
+        FP["fastapi-patterns"]
+        FE["react-frontend-expert"]
+    end
+
+    subgraph Testing
+        TDD["tdd-workflow"]
+        PY["pytest-patterns"]
+        RT["react-testing-patterns"]
+        E2E["e2e-testing"]
+    end
+
+    subgraph "Code Review"
+        SEC["code-review-security"]
+        PMC["pre-merge-checklist"]
+    end
+
+    subgraph Deployment
+        DOC["docker-best-practices"]
+        DEP["deployment-pipeline"]
+    end
+
+    subgraph Operations
+        MON["monitoring-setup"]
+        IR["incident-response"]
+    end
+
+    Planning --> Architecture --> Implementation --> Testing --> Code_Review["Code Review"] --> Deployment --> Operations
+```
 
 ## Installation
 
@@ -128,78 +193,38 @@ Invoke any skill directly with its name as a slash command:
 /tdd-workflow Implement the search feature using TDD
 ```
 
-### Phase-by-phase workflow
+## How Skills Work Together
 
-Here's a typical workflow using skills across the full SDLC:
+Skills compose across SDLC phases — each phase produces artifacts consumed by the next.
 
-**1. Plan the feature**
+| Phase | Skills | Output |
+|-------|--------|--------|
+| Planning | `project-planner` → `task-decomposition` | Implementation plan → atomic task list |
+| Architecture | `system-architecture` + `api-design-patterns` | ADRs, layer decisions, API contracts |
+| Implementation | `python-backend-expert`, `fastapi-patterns`, `react-frontend-expert` | Backend + frontend code |
+| Testing | `tdd-workflow` + `pytest-patterns` / `react-testing-patterns` / `e2e-testing` | Test-driven features, E2E coverage |
+| Code Review | `code-review-security` → `pre-merge-checklist` | Security findings → quality gates |
+| Deployment | `docker-best-practices` → `deployment-pipeline` | Container images → CI/CD pipeline |
+| Operations | `monitoring-setup` → `incident-response` | Observability → runbooks |
 
-```
-/project-planner Add real-time notifications to the app
-```
+For detailed composition rules, activation boundaries, and workflow diagrams, see:
+- **[Skill Composition Guide](docs/skill-composition.md)** — how skills activate, relate, and when *not* to use one
+- **[Greenfield Guide](docs/greenfield.md)** — full workflow for new projects (phases 1-8 in order)
+- **[Brownfield Guide](docs/brownfield.md)** — incremental adoption for existing projects
 
-The `project-planner` skill guides Claude through requirement analysis, file identification, subtask creation, and risk assessment — producing a structured plan.
+## MCP Server Integration
 
-**2. Decompose into tasks**
+Skills become more powerful when paired with [MCP servers](https://modelcontextprotocol.io) that provide live data access:
 
-```
-/task-decomposition Break down the notification plan into atomic tasks
-```
-
-The `task-decomposition` skill splits the plan into independently-verifiable tasks with file paths, preconditions, and done-conditions.
-
-**3. Design the architecture**
-
-```
-/system-architecture Design the notification service architecture
-```
-
-```
-/api-design-patterns Design the notification API endpoints
-```
-
-**4. Implement backend**
-
-```
-/python-backend-expert Create the notification service and endpoints
-```
-
-The skill guides Claude to follow your team's patterns: repository pattern, async sessions, Pydantic v2 schemas, proper error handling layers.
-
-**5. Implement frontend**
-
-```
-/react-frontend-expert Build the notification panel component
-```
-
-**6. Write tests (TDD)**
-
-```
-/tdd-workflow Implement notification preferences using TDD
-```
-
-This changes Claude's behavior to write a failing test first, then implement, then refactor.
-
-**7. Review before merge**
-
-```
-/code-review-security Review the notification feature for security issues
-/pre-merge-checklist Run the full pre-merge validation
-```
-
-**8. Deploy**
-
-```
-/docker-best-practices Create the Dockerfile for the notification service
-/deployment-pipeline Set up the deployment pipeline
-```
-
-**9. Set up monitoring**
-
-```
-/monitoring-setup Add logging, metrics, and health checks to the notification service
-/incident-response Create a runbook for notification service incidents
-```
+| Skill | MCP Server | What It Enables |
+|-------|------------|-----------------|
+| `project-planner`, `task-decomposition` | Jira MCP | Create issues, query backlog, link tasks |
+| `python-backend-expert` | PostgreSQL MCP | Schema inspection during implementation |
+| `pytest-patterns` | CI Server MCP | Trigger test runs, fetch coverage reports |
+| `code-review-security`, `pre-merge-checklist` | GitHub MCP | Fetch PR diffs, post comments, check CI |
+| `deployment-pipeline` | GitHub MCP, Kubernetes MCP | Trigger deploys, check pods, manage rollbacks |
+| `incident-response` | Datadog/PagerDuty MCP | Query metrics, check alerts, manage incidents |
+| `monitoring-setup` | Datadog MCP | Configure dashboards, verify alert rules |
 
 ## Skill anatomy
 
