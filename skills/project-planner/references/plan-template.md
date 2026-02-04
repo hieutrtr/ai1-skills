@@ -32,9 +32,18 @@
 |-------|----------|--------|-------|
 | Type | `src/types/xxx.ts` | Create/Modify | [description] |
 | Service | `src/services/xxxService.ts` | Create/Modify | [description] |
+| Query Hook | `src/hooks/useXxxQuery.ts` | Create | TanStack Query hook (useSuspenseQuery/useQuery) |
 | Hook | `src/hooks/useXxx.ts` | Create | [description] |
-| Component | `src/components/Xxx.tsx` | Create/Modify | [description] |
+| Server Component | `src/components/XxxServer.tsx` | Create | RSC — renders on server, zero client JS |
+| Client Component | `src/components/Xxx.tsx` | Create/Modify | 'use client' — interactive, uses hooks/state |
 | Page | `src/pages/XxxPage.tsx` | Create/Modify | [description] |
+
+### Server Component Decision
+
+For each new component, determine rendering strategy:
+- **Server Component** (default in React 19): data fetching, static content, no interactivity → zero client JS
+- **Client Component** (`'use client'`): needs hooks, event handlers, browser APIs, or state
+- **Hybrid**: Server Component wrapper with Client Component islands for interactive parts
 
 ### Tests
 
@@ -105,6 +114,22 @@ See `references/risk-assessment-checklist.md` for full risk category checklist.
 - [ ] Integration tests pass
 - [ ] No security vulnerabilities introduced (code-review-security passes)
 - [ ] Pre-merge checklist passes
+
+## Migration Considerations
+
+If this plan involves a framework/library version migration, see `references/migration-planning-guide.md` for:
+- Deprecated API inventory and codemod strategy
+- Version compatibility matrix
+- Phased migration approach
+- Rollback plan
+
+## AI-Assisted Planning Notes
+
+If AI tools were used to generate this plan:
+- [ ] Human reviewed all file paths for accuracy
+- [ ] Dependency graph verified manually
+- [ ] No hallucinated APIs or non-existent libraries referenced
+- [ ] Risk assessment includes AI-specific risks (generated code review, test coverage of AI output)
 
 ## Notes
 

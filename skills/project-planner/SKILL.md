@@ -3,18 +3,21 @@ name: project-planner
 description: >-
   Project planning and feature breakdown for Python/React full-stack projects.
   Use during the planning phase when breaking down feature requests, user stories,
-  or product requirements into implementation plans. Guides identification of affected
-  files and modules, defines acceptance criteria, maps task dependencies, and estimates
-  complexity. Produces structured task lists with file paths and verification steps.
-  Does NOT cover architecture decisions (use system-architecture) or implementation
-  (use python-backend-expert or react-frontend-expert).
+  or product requirements into implementation plans. Covers React 19 Server Components
+  planning, version migration (React 18→19, FastAPI, TypeScript 7), AI-assisted task
+  decomposition, monorepo setup, real-time WebSocket features, and TanStack Query v5
+  integration. Guides identification of affected files and modules, defines acceptance
+  criteria, maps task dependencies, and estimates complexity. Produces structured task
+  lists with file paths and verification steps. Does NOT cover architecture decisions
+  (use system-architecture) or implementation (use python-backend-expert or
+  react-frontend-expert).
 license: MIT
-compatibility: 'Python 3.12+, React 18+, FastAPI, SQLAlchemy, TypeScript'
+compatibility: 'Python 3.12+, React 19+, FastAPI, SQLAlchemy 2.0+, Pydantic v2, TypeScript 5.2+, TanStack Query v5'
 metadata:
   author: platform-team
-  version: '1.0.0'
+  version: '1.1.0'
   sdlc-phase: planning
-allowed-tools: Read Grep Glob
+allowed-tools: Read Grep Glob WebSearch
 context: fork
 ---
 
@@ -29,6 +32,9 @@ Activate this skill when:
 - Estimating complexity of a proposed change
 - Identifying dependencies between tasks before starting implementation
 - A stakeholder asks "how should we build this?"
+- Planning a React major version migration (e.g., 18→19) with deprecation removal and new API adoption
+- Using AI tools to assist with project planning draft generation and task decomposition
+- Planning features that involve deciding between React Server Components and client components
 
 Do NOT use this skill for:
 - Architecture decisions (component boundaries, technology choices) — use `system-architecture`
@@ -55,19 +61,23 @@ Follow these five steps in order for every planning request.
 Identify every file and module that will be created or modified. Use this checklist:
 
 **Backend (Python/FastAPI):**
-- Routes: `app/routers/` — new or modified endpoint files
+- Routes: `app/routers/` — new or modified endpoint files (or domain-based: `app/{domain}/routes.py`)
 - Services: `app/services/` — business logic modules
 - Repositories: `app/repositories/` — data access layer
-- Models: `app/models/` — SQLAlchemy ORM models
-- Schemas: `app/schemas/` — Pydantic request/response models
+- Models: `app/models/` — SQLAlchemy ORM models (use `Mapped`/`mapped_column` style)
+- Schemas: `app/schemas/` — Pydantic v2 request/response models
 - Migrations: `alembic/versions/` — database migration files
 - Dependencies: `app/dependencies.py` — FastAPI Depends() additions
 - Config: `app/core/config.py` — new settings or environment variables
+- Lifespan: `app/main.py` — use lifespan event handlers (not deprecated `on_event`)
+
+Note: For larger projects, consider **domain-based organization** (`app/{domain}/routes.py`, `app/{domain}/service.py`, `app/{domain}/models.py`) instead of file-type organization.
 
 **Frontend (React/TypeScript):**
 - Pages: `src/pages/` — new or modified page components
 - Components: `src/components/` — shared or feature-specific components
-- Hooks: `src/hooks/` — custom hooks (useXxx)
+- Server Components: identify which components can be server-rendered (React 19 RSC) vs client-only
+- Hooks: `src/hooks/` — custom hooks (useXxx), TanStack Query hooks (`useQuery`, `useSuspenseQuery`)
 - Services: `src/services/` — API client functions
 - Types: `src/types/` — TypeScript interfaces and types
 - Tests: `src/__tests__/` or co-located `.test.tsx` files
@@ -116,10 +126,12 @@ Review the plan against common risk categories. See `references/risk-assessment-
 - Performance regression (new queries, additional API calls, large payloads)
 - Third-party dependency risks (new packages, version conflicts)
 - Cross-cutting concerns (middleware changes, shared utility changes)
+- Framework/library version migration (React 19 deprecations, SQLAlchemy 2.1 changes, TypeScript 7 strict-by-default) — see `references/migration-planning-guide.md`
+- AI-generated code risks (review all AI-suggested code for security, correctness, and maintainability)
 
 ### Output Format
 
-Produce a structured plan document following the template in `references/plan-template.md`. The plan must include:
+Produce a structured plan document following the template in `references/plan-template.md`. You can also use `scripts/plan-generator.py` to generate an initial plan scaffold from CLI arguments (run with `--help` for options). The plan must include:
 
 1. **Objective** — one sentence
 2. **Affected Modules** — file paths grouped by layer
@@ -163,6 +175,15 @@ Assign a size to each task AND to the overall feature.
 **File Upload Feature:**
 1. Storage service → 2. Upload endpoint (multipart) → 3. Model field for file reference → 4. Frontend upload component → 5. Preview component → 6. Tests
 
+**Real-Time/WebSocket Feature:**
+1. WebSocket endpoint + connection manager → 2. Event schemas → 3. Backend event dispatcher → 4. Frontend WebSocket hook → 5. Real-time UI component → 6. Reconnection/error handling → 7. Tests
+
+**React Version Migration (e.g., 18→19):**
+1. Dependency audit (React, React DOM, related packages) → 2. Deprecated API inventory (`forwardRef`, `<Context.Provider>`, class components) → 3. Codemod execution → 4. Manual fixes for codemod gaps → 5. Server Component opportunities identification → 6. React Compiler enablement → 7. Test suite update → 8. Performance verification
+
+**Monorepo Setup:**
+1. Choose tooling (Nx, Turborepo, Pants) → 2. Define workspace structure (`apps/`, `packages/`) → 3. Configure shared dependencies → 4. Set up build pipeline with caching → 5. Migrate existing code → 6. Update CI/CD → 7. Document conventions
+
 ## Examples
 
 ### Example: Add User Profile Picture Upload
@@ -184,6 +205,44 @@ Assign a size to each task AND to the overall feature.
 
 **Complexity:** Medium (7 tasks, 9 files, unit + integration tests)
 
+### Example: Plan React 18→19 Migration
+
+**Objective:** Migrate the frontend from React 18 to React 19, removing deprecated APIs and enabling Server Components.
+
+**Affected Modules:**
+- Frontend: `package.json`, all files using `forwardRef`, `<Context.Provider>`, class components, `ReactDOM.render()`
+- Config: `tsconfig.json` (TypeScript 5.2+ required), `vite.config.ts` (React Compiler plugin)
+
+**Task List:**
+1. **Upgrade React dependencies** — Files: `package.json` — Preconditions: none — Verify: `npm install` succeeds, `npm run build` passes
+2. **Run React 19 codemod** — Files: all `.tsx`/`.ts` — Preconditions: Task 1 — Verify: codemod report shows changes applied
+3. **Replace forwardRef usage** — Files: components using `forwardRef` — Preconditions: Task 2 — Verify: `grep -r "forwardRef" src/` returns zero results
+4. **Replace Context.Provider** — Files: context providers — Preconditions: Task 2 — Verify: `grep -r "Context.Provider" src/` returns zero results
+5. **Enable React Compiler** — Files: `vite.config.ts` — Preconditions: Tasks 3, 4 — Verify: build succeeds with compiler plugin, remove manual `useMemo`/`useCallback`
+6. **Identify RSC candidates** — Files: read-heavy pages — Preconditions: Task 5 — Verify: documented list of Server Component candidates
+7. **Run full test suite** — Preconditions: Task 6 — Verify: all existing tests pass, performance benchmarks stable
+
+**Complexity:** Large (7 tasks, many files, full test suite, migration risk)
+
+### Example: Plan Real-Time Notifications
+
+**Objective:** Add real-time push notifications using WebSocket so users see alerts without refreshing.
+
+**Affected Modules:**
+- Backend: `app/services/notification_service.py` (new), `app/routers/ws.py` (new), `app/models/notification.py`, `alembic/versions/`
+- Frontend: `src/hooks/useNotifications.ts` (new), `src/components/NotificationBell.tsx` (new), `src/services/wsClient.ts` (new)
+
+**Task List:**
+1. **Add notification model** — Files: `app/models/notification.py`, `alembic/versions/` — Preconditions: none — Verify: migration applies
+2. **Create WebSocket manager** — Files: `app/services/notification_service.py` — Preconditions: none — Verify: unit test
+3. **Add WebSocket endpoint** — Files: `app/routers/ws.py` — Preconditions: Tasks 1, 2 — Verify: `websocat ws://localhost:8000/ws` connects
+4. **Add frontend WebSocket client** — Files: `src/services/wsClient.ts` — Preconditions: Task 3 — Verify: connects and receives test message
+5. **Add useNotifications hook** — Files: `src/hooks/useNotifications.ts` — Preconditions: Task 4 — Verify: hook returns notifications array
+6. **Add NotificationBell component** — Files: `src/components/NotificationBell.tsx` — Preconditions: Task 5 — Verify: renders bell with count badge, dropdown shows notifications
+7. **Add reconnection handling** — Files: `src/services/wsClient.ts` — Preconditions: Task 6 — Verify: auto-reconnects after disconnect
+
+**Complexity:** Large (7 tasks, 8 files, WebSocket complexity, reconnection logic)
+
 ## Edge Cases
 
 - **Cross-cutting changes** (auth middleware, error handling, logging): Flag for architecture review before planning implementation. These affect many files and may need their own planning session.
@@ -192,3 +251,7 @@ Assign a size to each task AND to the overall feature.
 - **Breaking API changes**: If an endpoint contract changes, plan a versioning strategy (new endpoint, deprecation header) before implementation. Check who consumes the API.
 - **Feature flags**: For large features, consider adding a feature flag task at the beginning. This allows partial deployment and rollback without code revert.
 - **Third-party dependency additions**: Verify license compatibility, check for known vulnerabilities (npm audit, pip-audit), and pin exact versions in the plan.
+- **React 19 migration deprecation cascade**: When migrating to React 19, deprecated APIs (`forwardRef`, `<Context.Provider>`, class components) may be deeply embedded. Plan a separate codemod task and manual fix pass. Third-party libraries may not support React 19 yet — audit all dependencies first.
+- **AI-assisted code planning**: When using AI tools for planning drafts, always have a human review the generated plan for missed dependencies, incorrect file paths, and hallucinated APIs. AI excels at structure but may miss project-specific constraints.
+- **Monorepo build pipeline**: Monorepo setups add CI/CD complexity (selective builds, dependency graph analysis, caching). Plan the build pipeline configuration as a separate task stream. Choose tooling before migrating code.
+- **TypeScript major version upgrade**: TypeScript 7 (mid-2026) will enforce strict mode by default, drop ES5/AMD/UMD targets, and remove classic module resolution. Plan a separate migration task if upgrading. Audit `tsconfig.json` compatibility before updating.
